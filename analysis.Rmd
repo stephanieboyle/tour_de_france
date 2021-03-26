@@ -13,18 +13,194 @@ knitr::include_graphics("images/logo.jpeg")
 ```
 
 
+```{r}
+library(colorfindr)
+
+# Get colors and create a palette with n = 5 
+tdf_colors <- get_colors("~/Desktop/image.jpeg") %>% # you can reference a local file on your computer or a jpg web address
+  make_palette(n = 10) # here we extract 5 colors
+
+tdf_colors
+```
+
+
+# Tour de France Analysis 
+
 <br>
+
+If you know me, you know I'm a huge cycling fan. So when I saw this TidyTuesday dataset come up, I was sold. 
+
+
+## Data Exploration
+
+
+Let's load our libraries and get the data in to see what it looks like. 
+
 
 ```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
 library(here)
 
+# read the data in 
 tdf_winners <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-07/tdf_winners.csv')
+
+# have a look 
+tdf_winners
+```
+
+So, it isn't a very big dataset. We have `106` rows, and `19` columns. 
+
+```{r}
+names(tdf_winners)
+```
+
+The columns we have 
+
+```{r}
 
 ```
 
 
+Number of unique race winners and teams
+
 ```{r}
-tail(tdf_winners)
+tdf_winners %>%
+  summarise(winner_count = n_distinct(winner_name), 
+            team_count = n_distinct(winner_team))
+
+
+```
+
+only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. 
+
+
+```{r}
+winners <- tdf_winners %>% 
+  group_by(winner_name) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+winners
+```
+
+```{r}
+
+winners %>%
+  filter(count > 2) %>%
+ggplot() + 
+  aes(x = reorder(winner_name, count), y = count) + 
+  geom_col(fill = "#ECC615") + 
+  coord_flip() + 
+  theme_light() + 
+  ylab("\n Number of TdF wins") + xlab(" ")
+```
+
+
+```{r}
+tdf_winners %>% 
+  group_by(winner_team) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+
+```{r}
+names(tdf_winners)
+```
+
+```{r}
+head(tdf_winners)
+```
+
+## Most stage wins
+
+```{r}
+stage_wins <- tdf_winners %>%
+  group_by(winner_name) %>%
+  summarise(totals = sum(stage_wins)) %>%
+  arrange(desc(totals))
+
+stage_wins %>%
+  head(15) %>%
+ggplot() + 
+  aes(reorder(winner_name,totals), totals) + 
+  geom_col(fill = "#067F0C") + 
+  coord_flip() + 
+  xlab(" ") + ylab("\n Number of stage wins")
+```
+
+```{r}
+stage_leads <- tdf_winners %>%
+  group_by(winner_name) %>%
+  summarise(totals = sum(stages_led)) %>%
+  arrange(desc(totals))
+
+stage_leads %>%
+  head(15) %>%
+ggplot() + 
+  aes(reorder(winner_name,totals), totals) + 
+  geom_col(fill = "#067F0C") + 
+  coord_flip() + 
+  xlab(" ") + ylab("\n Number of stage leads")
+```
+
+
+
+
+# Countries with most winners
+
+```{r}
+tdf_winners %>%
+  group_by(nationality) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  ggplot(aes(x = reorder(nationality,count), y = count)) + 
+  geom_col(fill = "red") + 
+  coord_flip() + 
+  xlab(" ") + ylab("Number of winners from each country")
+```
+
+# race distances over time
+
+```{r}
+library(lubridate)
+
+tdf_winners <- tdf_winners %>% 
+  mutate(year = lubridate::year(start_date)) %>%
+  select(-c(full_name,nickname, birth_town))
+  
+tdf_winners %>%
+  ggplot(aes(x = year, y = distance)) + 
+  geom_line(color = "#067F0C") + 
+  xlab("\n Race Year") + ylab("Distance (km) \n")
+```
+
+```{r}
+tdf_winners %>%
+  filter(distance == max(distance) | distance == min(distance)) %>%
+  select(year, distance, winner_name)
+
+```
+
+```{r}
+tdf_winners %>%
+  ggplot(aes(year, time_overall)) + 
+  geom_line() + 
+  xlab("Race Year") + ylab("Overall Time")
+```
+
+```{r}
+tdf_winners %>%
+  drop_na(time_overall) %>%
+  filter(time_overall == min(time_overall) | time_overall == max(time_overall))
+```
+
+```{r}
+tdf_winners %>%
+  mutate(speed = distance / time_overall) %>%
+  ggplot() + 
+  aes(x = year, y = speed) + 
+  geom_point(color = "Red") + 
+  geom_smooth(color = "#ECC615")
 ```
 
