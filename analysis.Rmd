@@ -13,8 +13,9 @@ knitr::include_graphics("images/logo.jpeg")
 ```
 
 
-```{r}
+```{r, eval = FALSE}
 library(colorfindr)
+library(tidyverse)
 
 # Get colors and create a palette with n = 5 
 tdf_colors <- get_colors("~/Desktop/image.jpeg") %>% # you can reference a local file on your computer or a jpg web address
@@ -40,28 +41,46 @@ Let's load our libraries and get the data in to see what it looks like.
 ```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
 library(here)
+library(janitor)
 
 # read the data in 
-tdf_winners <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-07/tdf_winners.csv')
+# tdf_winners <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-07/tdf_winners.csv')
+# 
 
-# have a look 
-tdf_winners
+tdf <- tidytuesdayR::tt_load('2020-04-07')
+tdf_stage_wins <- tdf$stage_data %>% clean_names()
+tdf_stages <- tdf$tdf_stages %>% clean_names()
+tdf_winners <- tdf$tdf_winners %>% clean_names()
+
+rm(tdf)
 ```
 
-So, it isn't a very big dataset. We have `106` rows, and `19` columns. 
+So, we have three datasets:
+
+The `tdf_winners` data contains information about the different people who took part. It's not very big, as it has `106` rows, and `19` columns. 
 
 ```{r}
-names(tdf_winners)
+head(tdf_winners)
 ```
 
-The columns we have 
+The `tdf_stage_wins` contains more detailed information about each year's race. It has information about who won each stage, what time the rider achieved, and how many points they gained. 
 
 ```{r}
+tdf_stage_wins
+```
 
+The `tdf_stages` data contains information about the stage itself, such as the distance, type of stage, and destination. 
+
+
+```{r}
+tdf_stages
 ```
 
 
-Number of unique race winners and teams
+# TDF Winners Dataset
+
+
+## Number of unique race winners and teams
 
 ```{r}
 tdf_winners %>%
@@ -72,6 +91,9 @@ tdf_winners %>%
 ```
 
 only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. 
+
+
+## Top cyclists
 
 
 ```{r}
@@ -86,12 +108,11 @@ winners
 ```{r}
 
 winners %>%
-  filter(count > 2) %>%
+ head(15) %>%
 ggplot() + 
   aes(x = reorder(winner_name, count), y = count) + 
   geom_col(fill = "#ECC615") + 
   coord_flip() + 
-  theme_light() + 
   ylab("\n Number of TdF wins") + xlab(" ")
 ```
 
@@ -103,14 +124,6 @@ tdf_winners %>%
   arrange(desc(count))
 ```
 
-
-```{r}
-names(tdf_winners)
-```
-
-```{r}
-head(tdf_winners)
-```
 
 ## Most stage wins
 
@@ -185,7 +198,7 @@ tdf_winners %>%
 ```{r}
 tdf_winners %>%
   ggplot(aes(year, time_overall)) + 
-  geom_line() + 
+  geom_line(color = "red") + 
   xlab("Race Year") + ylab("Overall Time")
 ```
 
@@ -195,12 +208,96 @@ tdf_winners %>%
   filter(time_overall == min(time_overall) | time_overall == max(time_overall))
 ```
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 tdf_winners %>%
   mutate(speed = distance / time_overall) %>%
   ggplot() + 
   aes(x = year, y = speed) + 
   geom_point(color = "Red") + 
-  geom_smooth(color = "#ECC615")
+  geom_smooth(color = "#ECC615", level = FALSE)
+```
+
+
+# Stages
+
+
+```{r}
+tdf_stages <- tdf_stages %>%
+  mutate(year = lubridate::year(date), 
+         type = str_to_lower(type))
+
+tdf_stages
+```
+
+```{r}
+tdf_stages %>% 
+  group_by(type) %>%
+  summarise(totals = n()) %>%
+  arrange(desc(totals)) %>%
+  ggplot(aes(x = reorder(type,totals), y = totals)) + 
+  geom_col(fill = "red") + 
+  coord_flip() + 
+  xlab("") + ylab("\n number of stage types")
+```
+
+
+```{r}
+# tdf_stages %>%
+#   group_by(winner) %>%
+#   mutate(totals = n()) %>% 
+#   ungroup() %>%
+#   arrange(desc(totals)) %>%
+#   select(winner, type, totals) %>%
+#   group_by(winner,type) %>%
+#   summarise(totals_all = sum(totals)) %>%
+#   arrange(desc(totals_all))
+
+# %>%
+#   distinct()
+#   head(15) %>% 
+#   ungroup() %>%
+#   ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
+#   geom_col()
+
+
+
+tdf_stages %>%
+  group_by(winner, type) %>%
+  summarise(totals = n()) %>%
+  arrange(desc(totals))
+
+
+tdf_stages %>% 
+  select(winner, type) %>%
+  group_by(winner) %>% 
+  mutate(totals = n()) %>% 
+  ungroup() %>% 
+  mutate(top_winners = fct_lump(winner, 30)) %>% 
+  count(top_winners, type, totals, sort = TRUE) %>%
+  filter(top_winners != "Other") %>% 
+  ggplot(aes(x = fct_reorder(winner_lmp, total_stage_wins), y = n, fill = Type)) +
+  geom_col() + 
+  coord_flip() +
+  scale_fill_viridis_d() +
+  labs(x = NULL)
+
+
+```
+
+
+```{r}
+tdf_stages %>% 
+  select(winner, type) %>%
+  group_by(winner) %>% 
+  mutate(totals = n()) %>% 
+  ungroup() %>% 
+  filter(totals >= 10) %>% 
+  # count(winner, type, totals, sort = TRUE) %>%
+  arrange(winner) %>%
+  distinct() %>%
+  arrange(desc(totals)) %>%
+ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
+  geom_col() + 
+  coord_flip() 
 ```
 
