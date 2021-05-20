@@ -1,10 +1,12 @@
 ---
 title: " "
 output: html_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", echo = FALSE)
 ```
 
 
@@ -12,17 +14,6 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
 knitr::include_graphics("images/logo.jpeg")
 ```
 
-
-```{r, eval = FALSE}
-library(colorfindr)
-library(tidyverse)
-
-# Get colors and create a palette with n = 5 
-tdf_colors <- get_colors("~/Desktop/image.jpeg") %>% # you can reference a local file on your computer or a jpg web address
-  make_palette(n = 10) # here we extract 5 colors
-
-tdf_colors
-```
 
 
 # Tour de France Analysis 
@@ -42,15 +33,16 @@ Let's load our libraries and get the data in to see what it looks like.
 library(tidyverse)
 library(here)
 library(janitor)
+library(patchwork)
+library(lubridate)
+library(viridis)
 
-# read the data in 
-# tdf_winners <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-04-07/tdf_winners.csv')
-# 
+
 
 tdf <- tidytuesdayR::tt_load('2020-04-07')
 tdf_stage_wins <- tdf$stage_data %>% clean_names()
 tdf_stages <- tdf$tdf_stages %>% clean_names()
-tdf_winners <- tdf$tdf_winners %>% clean_names()
+tdf_winners <- tdf$tdf_winners %>% clean_names() %>% mutate(year = lubridate::year(start_date)) 
 
 rm(tdf)
 ```
@@ -77,6 +69,13 @@ tdf_stages
 ```
 
 
+# Questions
+
+Who won the most tournaments? 
+
+WHAT COUNTRIES WERE THE MOST WINNERS BORN IN?
+
+
 # TDF Winners Dataset
 
 
@@ -90,102 +89,212 @@ tdf_winners %>%
 
 ```
 
-only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. 
+So, only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. 
 
 
 ## Top cyclists
 
 
 ```{r}
-winners <- tdf_winners %>% 
+winners_plot <- tdf_winners %>% 
   group_by(winner_name) %>%
   summarise(count = n()) %>%
-  arrange(desc(count))
-
-winners
-```
-
-```{r}
-
-winners %>%
- head(15) %>%
-ggplot() + 
+  arrange(desc(count)) %>%
+  head(15) %>%
+  ggplot() + 
   aes(x = reorder(winner_name, count), y = count) + 
   geom_col(fill = "#ECC615") + 
   coord_flip() + 
-  ylab("\n Number of TdF wins") + xlab(" ")
+  ylab(" ") + xlab(" ") + ggtitle("Top winners in the Tour de France \n") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  scale_y_continuous(breaks = c(1,2,3,4,5,6,7)) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+winners_plot
 ```
 
 
-```{r}
-tdf_winners %>% 
+```{r, eval = FALSE}
+teams_plot <- tdf_winners %>% 
   group_by(winner_team) %>%
   summarise(count = n()) %>%
-  arrange(desc(count))
+  arrange(desc(count)) %>%
+  head(15) %>%
+    ggplot() + 
+  aes(x = reorder(winner_team, count), y = count) + 
+  geom_col(fill = "#ECC615") + 
+  coord_flip() + 
+  scale_y_continuous(breaks = c(0:13)) + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  ylab(" ") + xlab(" ") + ggtitle("Top winning teams in the Tour de France \n") 
+
+teams_plot 
 ```
+
+
+
 
 
 ## Most stage wins
 
 ```{r}
-stage_wins <- tdf_winners %>%
+stage_wins_plot <- tdf_winners %>%
   group_by(winner_name) %>%
   summarise(totals = sum(stage_wins)) %>%
-  arrange(desc(totals))
-
-stage_wins %>%
+  arrange(desc(totals)) %>%
   head(15) %>%
-ggplot() + 
-  aes(reorder(winner_name,totals), totals) + 
-  geom_col(fill = "#067F0C") + 
-  coord_flip() + 
-  xlab(" ") + ylab("\n Number of stage wins")
+    ggplot() + 
+    aes(reorder(winner_name,totals), totals) + 
+    geom_col(fill = "#067F0C") + 
+    coord_flip() + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  ylab(" ") + xlab(" ") + ggtitle("Top Riders: stage wins \n") 
+
+stage_wins_plot
 ```
 
 ```{r}
-stage_leads <- tdf_winners %>%
+stage_leads_plot <- tdf_winners %>%
   group_by(winner_name) %>%
   summarise(totals = sum(stages_led)) %>%
-  arrange(desc(totals))
-
-stage_leads %>%
+  arrange(desc(totals)) %>%
   head(15) %>%
-ggplot() + 
+  ggplot() + 
   aes(reorder(winner_name,totals), totals) + 
   geom_col(fill = "#067F0C") + 
   coord_flip() + 
-  xlab(" ") + ylab("\n Number of stage leads")
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  ylab(" ") + xlab(" ") + ggtitle("Top Riders: stage leads \n") 
+
+
+stage_leads_plot
 ```
 
+```{r, eval = FALSE}
+plot <- stage_wins | stage_leads
+  
+  plot<- plot + 
+  plot_layout(widths = c(0.1, 0.1)) +
+  theme(panel.border = element_blank(),
+        panel.grid = element_blank(),
+        strip.background = element_blank(),
+        strip.placement = NULL)
+  
+ggsave("test.png", plot)
+```
 
 
 
 # Countries with most winners
 
 ```{r}
-tdf_winners %>%
+countries_plot <- tdf_winners %>%
   group_by(nationality) %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
   ggplot(aes(x = reorder(nationality,count), y = count)) + 
   geom_col(fill = "red") + 
   coord_flip() + 
-  xlab(" ") + ylab("Number of winners from each country")
+  xlab(" ") + ggtitle("Number of winners from each country")  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+countries_plot
 ```
 
 # race distances over time
 
 ```{r}
-library(lubridate)
 
-tdf_winners <- tdf_winners %>% 
-  mutate(year = lubridate::year(start_date)) %>%
-  select(-c(full_name,nickname, birth_town))
-  
-tdf_winners %>%
+
+distances_plot <- tdf_winners %>%
   ggplot(aes(x = year, y = distance)) + 
-  geom_line(color = "#067F0C") + 
-  xlab("\n Race Year") + ylab("Distance (km) \n")
+  geom_line(color = "red", size = 1) + 
+  xlab("\n Race Year") + ylab("Distance (km) \n")  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(1, 1, 1, 1), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) 
+
+
+distances_plot
+```
+
+
+
+```{r}
+timings_plot <- tdf_winners %>%
+  ggplot(aes(year, time_overall)) + 
+  geom_line(color = "red", size = 1) + 
+  xlab("\n Race Year") + ylab("Overall Time")  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+timings_plot
+```
+
+
+```{r, warning = FALSE, message = FALSE}
+speed_plot <- tdf_winners %>%
+  mutate(speed = distance / time_overall) %>%
+  ggplot() + 
+  aes(x = year, y = speed) + 
+  geom_point(color = "Red") + 
+  geom_smooth(color = "#ECC615", level = FALSE)  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+speed_plot
+
 ```
 
 ```{r}
@@ -197,25 +306,12 @@ tdf_winners %>%
 
 ```{r}
 tdf_winners %>%
-  ggplot(aes(year, time_overall)) + 
-  geom_line(color = "red") + 
-  xlab("Race Year") + ylab("Overall Time")
-```
-
-```{r}
-tdf_winners %>%
   drop_na(time_overall) %>%
-  filter(time_overall == min(time_overall) | time_overall == max(time_overall))
+  filter(time_overall == min(time_overall) | time_overall == max(time_overall)) %>%
+  select(winner_name, time_overall)
 ```
 
-```{r, warning = FALSE, message = FALSE}
-tdf_winners %>%
-  mutate(speed = distance / time_overall) %>%
-  ggplot() + 
-  aes(x = year, y = speed) + 
-  geom_point(color = "Red") + 
-  geom_smooth(color = "#ECC615", level = FALSE)
-```
+
 
 
 # Stages
@@ -237,52 +333,17 @@ tdf_stages %>%
   ggplot(aes(x = reorder(type,totals), y = totals)) + 
   geom_col(fill = "red") + 
   coord_flip() + 
-  xlab("") + ylab("\n number of stage types")
+  xlab("") + ylab("") + ggtitle("\n number of stage types") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
 ```
 
-
-```{r}
-# tdf_stages %>%
-#   group_by(winner) %>%
-#   mutate(totals = n()) %>% 
-#   ungroup() %>%
-#   arrange(desc(totals)) %>%
-#   select(winner, type, totals) %>%
-#   group_by(winner,type) %>%
-#   summarise(totals_all = sum(totals)) %>%
-#   arrange(desc(totals_all))
-
-# %>%
-#   distinct()
-#   head(15) %>% 
-#   ungroup() %>%
-#   ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
-#   geom_col()
-
-
-
-tdf_stages %>%
-  group_by(winner, type) %>%
-  summarise(totals = n()) %>%
-  arrange(desc(totals))
-
-
-tdf_stages %>% 
-  select(winner, type) %>%
-  group_by(winner) %>% 
-  mutate(totals = n()) %>% 
-  ungroup() %>% 
-  mutate(top_winners = fct_lump(winner, 30)) %>% 
-  count(top_winners, type, totals, sort = TRUE) %>%
-  filter(top_winners != "Other") %>% 
-  ggplot(aes(x = fct_reorder(winner_lmp, total_stage_wins), y = n, fill = Type)) +
-  geom_col() + 
-  coord_flip() +
-  scale_fill_viridis_d() +
-  labs(x = NULL)
-
-
-```
 
 
 ```{r}
@@ -298,6 +359,16 @@ tdf_stages %>%
   arrange(desc(totals)) %>%
 ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
   geom_col() + 
-  coord_flip() 
+  coord_flip()  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  xlab("") + ylab("") + 
+scale_fill_viridis(discrete=TRUE, option="magma")
 ```
 
