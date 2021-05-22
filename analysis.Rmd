@@ -1,85 +1,84 @@
 ---
-title: " "
-output: html_document
-editor_options: 
-  chunk_output_type: inline
+title: "TidyTuesday : Tour de France Data"
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.align = "center", echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
 ```
 
+<br><br>
 
 ```{r, echo=FALSE, out.width='40%'}
 knitr::include_graphics("images/logo.jpeg")
 ```
 
+<br><br>
 
+If you know me, you know I'm a huge cycling fan. So when I saw this TidyTuesday dataset come up, I was sold. This will walk you through how I went about analysing and plotting the dataset as part of the \#TidyTuesday challenge. I'm trying to write more tutorial-style content, and figured this would be a good intro to the basics of data visualisation, for those who are used to using the tidyverse `dplyr`.
 
-# Tour de France Analysis 
-
-<br>
-
-If you know me, you know I'm a huge cycling fan. So when I saw this TidyTuesday dataset come up, I was sold. 
-
+<hr>
 
 ## Data Exploration
 
+Let's start at the beginning, and load our libraries, get the data in, and see what it looks like.
 
-Let's load our libraries and get the data in to see what it looks like. 
+<br>
 
-
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, results = "hide"}
 library(tidyverse)
 library(here)
 library(janitor)
 library(patchwork)
 library(lubridate)
 library(viridis)
+library(randomcoloR)
+library(DT)
 
+tdf_stage_wins <- read_csv("data/tdf_stage_wins.csv")
+tdf_stages <- read_csv("data/tdf_stages.csv")
+tdf_winners <- read_csv("data/tdf_winners.csv")
 
-
-tdf <- tidytuesdayR::tt_load('2020-04-07')
-tdf_stage_wins <- tdf$stage_data %>% clean_names()
-tdf_stages <- tdf$tdf_stages %>% clean_names()
-tdf_winners <- tdf$tdf_winners %>% clean_names() %>% mutate(year = lubridate::year(start_date)) 
-
-rm(tdf)
+# # I saved the files and loaded them in to save time, you can download them all using the following code though direct from the repo
+# tdf <- tidytuesdayR::tt_load('2020-04-07')
+# tdf_stage_wins <- tdf$stage_data %>% clean_names()
+# tdf_stages <- tdf$tdf_stages %>% clean_names()
+# tdf_winners <- tdf$tdf_winners %>% clean_names() %>% mutate(year = lubridate::year(start_date)) 
+# rm(tdf)
 ```
 
-So, we have three datasets:
-
-The `tdf_winners` data contains information about the different people who took part. It's not very big, as it has `106` rows, and `19` columns. 
+So, we have three datasets: `tdf_stage_wins`, `tdf_stages`, and `tdf_winners`.
 
 ```{r}
-head(tdf_winners)
+glimpse(tdf_winners)
 ```
 
-The `tdf_stage_wins` contains more detailed information about each year's race. It has information about who won each stage, what time the rider achieved, and how many points they gained. 
+<br> The `tdf_winners` isn't very big (has `106` rows, and `19` columns), and has a mix of numeric, text, and date info to work with as well.
 
 ```{r}
-tdf_stage_wins
+glimpse(tdf_stages)
 ```
 
-The `tdf_stages` data contains information about the stage itself, such as the distance, type of stage, and destination. 
+The `tdf_stages` dataset contains basic info about each stage: when it occurred, where it started, where it ended, what type of stage it was, and who won it.   
 
 
 ```{r}
-tdf_stages
+glimpse(tdf_stage_wins)
 ```
 
+The `tdf_stage_wins` contains more detailed information about each year's race: who won each stage, what time the rider achieved, and how many points they gained.
 
-# Questions
 
-Who won the most tournaments? 
-
-WHAT COUNTRIES WERE THE MOST WINNERS BORN IN?
+<hr>
 
 
 # TDF Winners Dataset
 
 
-## Number of unique race winners and teams
+Let's start at the beginning and look at the `tdf_winners` dataset. One thing that we can do first is see how many unique riders and teams we have. 
+
 
 ```{r}
 tdf_winners %>%
@@ -89,10 +88,12 @@ tdf_winners %>%
 
 ```
 
-So, only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. 
+So, only 63 cyclists, but 106 editions. So some cyclists have won multiple. And only 48 different teams. Interesting. 
+
+So let's start there, and have a look at the winner and team demographics first. 
 
 
-## Top cyclists
+Let's start with the biggest question: who are the "best" riders? I.e. who are those that have won more than one Tour.    
 
 
 ```{r}
@@ -100,12 +101,12 @@ winners_plot <- tdf_winners %>%
   group_by(winner_name) %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
-  head(15) %>%
+  filter(count >= 2) %>%
   ggplot() + 
   aes(x = reorder(winner_name, count), y = count) + 
   geom_col(fill = "#ECC615") + 
   coord_flip() + 
-  ylab(" ") + xlab(" ") + ggtitle("Top winners in the Tour de France \n") + 
+  ylab(" ") + xlab(" ") + ggtitle("Top winners (2 + wins)\n") + 
   theme(legend.position = "none", 
         panel.spacing.x = unit(2, "lines"),
         strip.text = element_blank(),
@@ -118,14 +119,16 @@ winners_plot <- tdf_winners %>%
 
 winners_plot
 ```
+Ah, Lance. Well his wins aren't legit any more, but we can leave it there for now.  
 
+Next, what about the top teams these people raced for? 
 
 ```{r, eval = FALSE}
 teams_plot <- tdf_winners %>% 
   group_by(winner_team) %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
-  head(15) %>%
+  filter(count >= 2) %>%
     ggplot() + 
   aes(x = reorder(winner_team, count), y = count) + 
   geom_col(fill = "#ECC615") + 
@@ -139,80 +142,11 @@ teams_plot <- tdf_winners %>%
         ) + 
   theme_minimal() +
   theme(text=element_text(family="Fira Code")) + 
-  ylab(" ") + xlab(" ") + ggtitle("Top winning teams in the Tour de France \n") 
+  ylab(" ") + xlab(" ") + ggtitle("Top winning teams (2 + wins) \n") 
 
 teams_plot 
 ```
-
-
-
-
-
-## Most stage wins
-
-```{r}
-stage_wins_plot <- tdf_winners %>%
-  group_by(winner_name) %>%
-  summarise(totals = sum(stage_wins)) %>%
-  arrange(desc(totals)) %>%
-  head(15) %>%
-    ggplot() + 
-    aes(reorder(winner_name,totals), totals) + 
-    geom_col(fill = "#067F0C") + 
-    coord_flip() + 
-  theme(legend.position = "none", 
-        panel.spacing.x = unit(2, "lines"),
-        strip.text = element_blank(),
-        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
-        panel.border = element_blank()
-        ) + 
-  theme_minimal() +
-  theme(text=element_text(family="Fira Code")) + 
-  ylab(" ") + xlab(" ") + ggtitle("Top Riders: stage wins \n") 
-
-stage_wins_plot
-```
-
-```{r}
-stage_leads_plot <- tdf_winners %>%
-  group_by(winner_name) %>%
-  summarise(totals = sum(stages_led)) %>%
-  arrange(desc(totals)) %>%
-  head(15) %>%
-  ggplot() + 
-  aes(reorder(winner_name,totals), totals) + 
-  geom_col(fill = "#067F0C") + 
-  coord_flip() + 
-  theme(legend.position = "none", 
-        panel.spacing.x = unit(2, "lines"),
-        strip.text = element_blank(),
-        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
-        panel.border = element_blank()
-        ) + 
-  theme_minimal() +
-  theme(text=element_text(family="Fira Code")) + 
-  ylab(" ") + xlab(" ") + ggtitle("Top Riders: stage leads \n") 
-
-
-stage_leads_plot
-```
-
-```{r, eval = FALSE}
-plot <- stage_wins | stage_leads
-  
-  plot<- plot + 
-  plot_layout(widths = c(0.1, 0.1)) +
-  theme(panel.border = element_blank(),
-        panel.grid = element_blank(),
-        strip.background = element_blank(),
-        strip.placement = NULL)
-  
-ggsave("test.png", plot)
-```
-
-
-
-# Countries with most winners
+Not really surprising that Team France has the most. We can check and see if this is consistent with the winning nationalities of the riders next. 
 
 ```{r}
 countries_plot <- tdf_winners %>%
@@ -220,7 +154,7 @@ countries_plot <- tdf_winners %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
   ggplot(aes(x = reorder(nationality,count), y = count)) + 
-  geom_col(fill = "red") + 
+  geom_col(fill = "#ECC615") + 
   coord_flip() + 
   xlab(" ") + ggtitle("Number of winners from each country")  + 
   theme(legend.position = "none", 
@@ -235,15 +169,33 @@ countries_plot <- tdf_winners %>%
 countries_plot
 ```
 
-# race distances over time
+Ok yeah... still France. Checks out! 
+
+Finally, maybe we just check the overall rider demographics.
+
 
 ```{r}
+tdf_winners %>%
+  summarise(median_age = median(age, na.rm = TRUE), 
+            median_height = median(height, na.rm = TRUE), 
+            median_weight = median(weight, na.rm = TRUE))
+```
+
+A group of young, average height, skinny cyclists! Again, checks out. That seems like all the info we have about the riders and teams, so we can move on to the race itself. 
+
+<hr> 
+
+# Race Info
+
+Let's start with the distances of the race. It's no secret that the race has changed as time has gone on. So we can investigate the races. Let's look at how race distances have changed first.   
 
 
+```{r}
 distances_plot <- tdf_winners %>%
   ggplot(aes(x = year, y = distance)) + 
   geom_line(color = "red", size = 1) + 
   xlab("\n Race Year") + ylab("Distance (km) \n")  + 
+  ggtitle("Race distances over the years \n") + 
   theme(legend.position = "none", 
         panel.spacing.x = unit(2, "lines"),
         strip.text = element_blank(),
@@ -257,13 +209,16 @@ distances_plot <- tdf_winners %>%
 distances_plot
 ```
 
+You can really see how hard the early versions of the tour were here. Before 1925, the riders were doing over 5000km. Nowadays, they seem to be doing around 3500km. Quite a difference. 
 
+What about how the riders times have changed over the years? 
 
 ```{r}
 timings_plot <- tdf_winners %>%
   ggplot(aes(year, time_overall)) + 
   geom_line(color = "red", size = 1) + 
   xlab("\n Race Year") + ylab("Overall Time")  + 
+  ggtitle("Race timings over the years \n") +
   theme(legend.position = "none", 
         panel.spacing.x = unit(2, "lines"),
         strip.text = element_blank(),
@@ -276,6 +231,8 @@ timings_plot <- tdf_winners %>%
 timings_plot
 ```
 
+So here, you can see the opposite. As the years have gone on, the riders timings have gone down. This could be because of a few things: shorter stages, faster bikes, fewer days on the tour, etc. Hard to tease apart, so we should look at speed instead of distance and time. 
+
 
 ```{r, warning = FALSE, message = FALSE}
 speed_plot <- tdf_winners %>%
@@ -284,6 +241,8 @@ speed_plot <- tdf_winners %>%
   aes(x = year, y = speed) + 
   geom_point(color = "Red") + 
   geom_smooth(color = "#ECC615", level = FALSE)  + 
+  xlab("\n Speed (km/h)") + ylab("\n Year") + 
+  ggtitle("Speed over the years \n") + 
   theme(legend.position = "none", 
         panel.spacing.x = unit(2, "lines"),
         strip.text = element_blank(),
@@ -296,6 +255,11 @@ speed_plot <- tdf_winners %>%
 speed_plot
 
 ```
+
+So this confirms what we think - speed has gone up over the years. 
+
+We can just finish this bit up by looking at the names of the riders that have the top/bottom distances, timings, and speeds.  
+
 
 ```{r}
 tdf_winners %>%
@@ -311,55 +275,45 @@ tdf_winners %>%
   select(winner_name, time_overall)
 ```
 
+```{r}
+tdf_winners %>%
+  mutate(speed = distance / time_overall) %>%
+  select(winner_name, speed) %>%
+  drop_na(speed) %>%
+  filter(speed == max(speed) | speed == min(speed))
+```
 
+<hr> 
 
 
 # Stages
 
+Next, we can start looking at more info about each stage. Let's start with the `tdf_stages` data. 
+
 
 ```{r}
+# do some data cleaning 
 tdf_stages <- tdf_stages %>%
   mutate(year = lubridate::year(date), 
          type = str_to_lower(type))
 
-tdf_stages
 ```
 
-```{r}
-tdf_stages %>% 
-  group_by(type) %>%
-  summarise(totals = n()) %>%
-  arrange(desc(totals)) %>%
-  ggplot(aes(x = reorder(type,totals), y = totals)) + 
-  geom_col(fill = "red") + 
-  coord_flip() + 
-  xlab("") + ylab("") + ggtitle("\n number of stage types") + 
-  theme(legend.position = "none", 
-        panel.spacing.x = unit(2, "lines"),
-        strip.text = element_blank(),
-        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
-        panel.border = element_blank()
-        ) + 
-  theme_minimal() +
-  theme(text=element_text(family="Fira Code"))
-```
+First, let's look at who the top stage riders are. If you're not used to the Tour, you should probably know that often the riders that win the overall Tour, don't actually win many (if any) stages on it. Confusing, yes. But it gives us more to look at. 
 
+There is quite a lot of data here, so we will narrow it down by looking for riders that have won more than three stages. 
 
 
 ```{r}
-tdf_stages %>% 
-  select(winner, type) %>%
-  group_by(winner) %>% 
-  mutate(totals = n()) %>% 
-  ungroup() %>% 
-  filter(totals >= 10) %>% 
-  # count(winner, type, totals, sort = TRUE) %>%
-  arrange(winner) %>%
-  distinct() %>%
+stage_wins_plot <- tdf_winners %>%
+  group_by(winner_name) %>%
+  summarise(totals = sum(stage_wins)) %>%
   arrange(desc(totals)) %>%
-ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
-  geom_col() + 
-  coord_flip()  + 
+  filter(totals > 3) %>%
+    ggplot() + 
+    aes(reorder(winner_name,totals), totals) + 
+    geom_col(fill = "#067F0C") + 
+    coord_flip() + 
   theme(legend.position = "none", 
         panel.spacing.x = unit(2, "lines"),
         strip.text = element_blank(),
@@ -368,7 +322,221 @@ ggplot(aes(x = reorder(winner, totals), y = totals, fill = type)) +
         ) + 
   theme_minimal() +
   theme(text=element_text(family="Fira Code")) + 
-  xlab("") + ylab("") + 
-scale_fill_viridis(discrete=TRUE, option="magma")
+  ylab(" ") + xlab(" ") + ggtitle("Top Stage Riders (3+ stage wins)\n") 
+
+stage_wins_plot
 ```
 
+Eddy Merckx is dwarfing everyone. He's often hailed as the best rider of all time, so it makes sense to see him up there. You can also see the difference between stage win riders, and overall tour rides. Chris Froome for example has only won _one_ less tour than Eddie, but he's won far less stages. 
+
+What about people who lead stages (i.e. don't win them, but go out ahead and dominate for most of the stage). For this, the values are a bit higher, so we'll set the cut off as >= 14 wins. 
+
+```{r}
+stage_leads_plot <- tdf_winners %>%
+  group_by(winner_name) %>%
+  summarise(totals = sum(stages_led)) %>%
+  arrange(desc(totals)) %>%
+  filter(totals >= 14) %>%
+  ggplot() + 
+  aes(reorder(winner_name,totals), totals) + 
+  geom_col(fill = "#067F0C") + 
+  coord_flip() + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  ylab(" ") + xlab(" ") + ggtitle("Top Stage Leaders (14 + leads) \n") 
+
+
+stage_leads_plot
+```
+
+Again, Eddie reigns supreme. 
+
+Ok, onwards. Now we can look at different types of stages. 
+
+First things first, where do the stages start and end? 
+
+```{r}
+origins <- tdf_stages %>%
+  group_by(origin) %>%
+  summarise(count = n()) %>% 
+  rename(name = origin) %>%
+  mutate(place = "origin") %>% 
+  arrange(desc(count))
+
+destinations <- tdf_stages %>%
+  group_by(destination) %>%
+  summarise(count = n()) %>%
+  rename(name = destination) %>%
+  mutate(place = "destination") %>% 
+  arrange(desc(count))
+
+maps <- bind_rows(origins, destinations)
+```
+
+```{r}
+start_plot <- maps %>%
+  filter(place == "origin", count >20) %>%
+ggplot() + 
+  aes(x = reorder(name, count), y = count) + 
+  geom_col(fill = "#067F0C")  + 
+  coord_flip() + 
+  xlab("") + ylab("") + ggtitle("Start locations \n") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+start_plot
+```
+
+Not hugely surprising either that the most common start points are the main places in France!
+
+```{r}
+end_plot <- maps %>%
+  filter(place == "destination", count >20) %>%
+ggplot() + 
+  aes(x = reorder(name, count), y = count) + 
+  geom_col(fill = "#067F0C")  + 
+  coord_flip() + 
+  xlab("") + ylab("") + ggtitle("End locations \n") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+end_plot
+```
+And the end locations aren't that surprising either. But good to know anyway. 
+
+Right, onto the stage types we get. 
+
+```{r}
+tdf_stages %>% 
+  distinct(type)
+```
+
+Some of these stages are pretty similar, so let's combine them. 
+
+```{r}
+tdf_stages <- tdf_stages %>% 
+  mutate(type = recode(type, 
+                       "stage with mountain(s)" = "mountain stage",
+                       "stage with mountain" = "mountain stage",
+                       "medium mountain stage" = "mountain stage", 
+                       "high mountain stage" = "mountain stage",
+                       "plain stage with cobblestones" = "cobblestones", "flat cobblestone stage" = "cobblestones"
+                       ))
+```
+
+Now we can plot them and have a look. 
+
+```{r}
+stage_types_plot <- tdf_stages %>% 
+  group_by(type) %>%
+  summarise(totals = n()) %>%
+  arrange(desc(totals)) %>%
+  ggplot(aes(x = reorder(type,totals), y = totals)) + 
+  geom_col(fill = "#067F0C") + 
+  coord_flip() + 
+  xlab("") + ylab("") + ggtitle("Type of Stage \n") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+stage_types_plot
+```
+
+Lots of standard stages (makes sense), and lots of mountains and time trials. Cobblestones are down the bottom (leave that to Paris Roubaix). 
+
+So what about the distance of each stage type? 
+
+```{r}
+stage_distance_plot <- tdf_stages %>%
+  group_by(type) %>%
+  summarise(median_distance = median(distance)) %>%
+ggplot() + 
+  aes(x = reorder(type,median_distance), y = median_distance) + 
+  geom_col() + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  geom_col(fill = "#067F0C") + 
+  coord_flip() + 
+  xlab("") + ylab("\n median distance (km)") + ggtitle("Stage distance by type \n") + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code"))
+
+stage_distance_plot
+```
+
+
+Well, we can see that even though there aren't many cobble stages, they tend to be the longest when they do crop up! Time trials are the shortest, which does make sense, as they're really meant to be intense short bursts. 
+
+
+Finally, we can look at which rider is the most diverse when it comes to different stage types. 
+
+
+```{r}
+stage_type_plot <- tdf_stages %>% 
+  select(winner, type) %>%
+  group_by(winner) %>% 
+  mutate(totals = n()) %>% 
+  ungroup() %>% 
+  filter(totals >= 10) %>% 
+  group_by(winner) %>% 
+  distinct(winner, type, .keep_all = TRUE) %>% 
+  mutate(biggest = sum(totals)) %>%
+  arrange(desc(biggest)) %>%
+  ggplot(aes(x = reorder(winner, biggest), y = totals, fill = type)) +
+  geom_col() + 
+  coord_flip()  + 
+  theme(legend.position = "none", 
+        panel.spacing.x = unit(2, "lines"),
+        strip.text = element_blank(),
+        plot.margin = unit(c(1, 1, 1, 1), "cm"), #top, right, bottom, left
+        panel.border = element_blank()
+        ) + 
+  theme_minimal() +
+  theme(text=element_text(family="Fira Code")) + 
+  xlab("") + ylab("") + 
+  scale_fill_viridis_d(option="viridis") +
+theme(legend.text=element_text(size=8))
+
+stage_type_plot 
+  
+```
+
+And there we go, an analysis of the Tour de France data!
+
+
+
+
+```{r, eval = FALSE, echo = FALSE}
+
+# PATCHWORK BIT
+big_plot <- winners_plot + teams_plot + countries_plot + distances_plot + timings_plot + speed_plot + stage_wins_plot + stage_leads_plot + start_plot + end_plot + stage_types_plot + stage_distance_plot + stage_type_plot
+  
+```
