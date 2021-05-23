@@ -123,7 +123,7 @@ Ah, Lance. Well his wins aren't legit any more, but we can leave it there for no
 
 Next, what about the top teams these people raced for? 
 
-```{r, eval = FALSE}
+```{r}
 teams_plot <- tdf_winners %>% 
   group_by(winner_team) %>%
   summarise(count = n()) %>%
@@ -534,9 +534,23 @@ And there we go, an analysis of the Tour de France data!
 
 
 
-```{r, eval = FALSE, echo = FALSE}
+```{r, echo = FALSE}
 
-# PATCHWORK BIT
-big_plot <- winners_plot + teams_plot + countries_plot + distances_plot + timings_plot + speed_plot + stage_wins_plot + stage_leads_plot + start_plot + end_plot + stage_types_plot + stage_distance_plot + stage_type_plot
+# saving stuff for readme
+ggsave("images/p1.png",  winners_plot)
+ggsave("images/p2.png",  teams_plot)
+ggsave("images/p3.png",  countries_plot)
+ggsave("images/p4.png",  distances_plot)
+ggsave("images/p5.png",  timings_plot)
+ggsave("images/p6.png",  speed_plot)
+ggsave("images/p7.png",  stage_wins_plot)
+ggsave("images/p8.png",  stage_leads_plot)
+ggsave("images/p9.png",  start_plot)
+ggsave("images/p10.png", end_plot)
+ggsave("images/p11.png", stage_types_plot)
+ggsave("images/p12.png", stage_distance_plot)
+ggsave("images/p12.png", stage_type_plot)
+
+# winners_plot + teams_plot + countries_plot + distances_plot + timings_plot + speed_plot + stage_wins_plot + stage_leads_plot + start_plot + end_plot + stage_types_plot + stage_distance_plot + stage_type_plot
   
 ```
